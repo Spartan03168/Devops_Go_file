@@ -1,11 +1,15 @@
 pipeline {
     agent any
     
+    tools{
+        go "1.20.4"
+    }
+    
     stages {
         stage('Checkout my go project') {
            steps {
                cleanWs()
-               git credentialsId: '5d164e7f-1a55-4dd9-a7cf-aa6309cc534b', url:  'https://github.com/Spartan03168/Devops_Go_file.git'
+               git credentialsId:'5d164e7f-1a55-4dd9-a7cf-aa6309cc534b', url:'https://github.com/Spartan03168/Devops_Go_file.git'
             }
         }
         
@@ -14,6 +18,8 @@ pipeline {
                 sh "go build main.go"
             }
         }
+        
+        
         
         stage('test go') {
             steps {
