@@ -1,0 +1,26 @@
+pipeline{
+    agent any
+    
+    stages{
+        stage("clean up workspace"){
+            steps{
+                cleanWs()
+            }
+        }
+        stage("checkout"){
+            steps{
+                git credentialsId: '8f77fea2-8ed3-41e0-9aab-c6675819a131', 
+                url: 'https://github.com/Spartan03168/Devops_Go_file.git'
+            }
+        }
+        stage("pods creation"){
+            steps{
+                withKubeCredentials(kubectlCredentials: [[caCertificate: '', clusterName: 'myekscluster', contextName: '', credentialsId: 'jenkong', namespace: '', serverUrl: 'https://50AFC6E7AF48D3768767121E68D57B47.gr7.us-east-1.eks.amazonaws.com']]) {
+                sh "kubectl apply -f pod.yml"
+                sh "kubectl get pods"
+                }
+
+            }
+        }
+    }
+}
