@@ -1,26 +1,57 @@
-pipeline{
+pipeline {
     agent any
     
-    stages{
-        stage("clean up workspace"){
-            steps{
-                cleanWs()
+    stages {
+        stage('Checkout my go project') {
+           steps {
+               cleanWs()
+               git credentialsId: '58270b45-cf28-459f-abe9-0d262896f67d', url: 'https://github.com/abinashp-github/Devops_Go_file.git'
             }
         }
-        stage("checkout"){
-            steps{
-                git credentialsId: '8f77fea2-8ed3-41e0-9aab-c6675819a131', 
-                url: 'https://github.com/Spartan03168/Devops_Go_file.git'
+        
+        stage('build go') {
+            steps {
+                sh "go build main.go"
+                sh "chmod 777 main"
             }
         }
-        stage("pods creation"){
-            steps{
-                withKubeCredentials(kubectlCredentials: [[caCertificate: '', clusterName: 'myekscluster', contextName: '', credentialsId: 'jenkong', namespace: '', serverUrl: 'https://50AFC6E7AF48D3768767121E68D57B47.gr7.us-east-1.eks.amazonaws.com']]) {
-                sh "kubectl apply -f pod.yml"
-                sh "kubectl get pods"
+        
+        stage('test go') {
+            steps {
+                sh "go version"
+            }
+        }
+        
+        stage('Copying artifact to target VM (Staging)') {
+            steps {
+            sshagent(['target']) {
+                sh "ssh -o StrictHostKeyChecking=no ec2-user@172.31.89.161"
+                sh "scp /var/lib/jenkins/workspace/newjob/main ec2-user@172.31.89.161:/home/ec2-user/"
+                sh "chmod +x main"
                 }
-
             }
         }
+        stage('Deployemnt in Staging') {
+            steps {
+                
+                sshPublisher(publishers: [sshPublisherDesc(configName: 'mytarget', transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: 'nohup ./main &>/dev/null &', execTimeout: 120000, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: 'main')], usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: false)])
+            }
+        }
+        
+        stage('Copying artifact to new EC2 instance (Production)') {
+            steps {
+            sshagent(['newEC2']) {
+                sh "ssh -o StrictHostKeyChecking=no ec2-user@172.31.94.214"
+                sh "scp /var/lib/jenkins/workspace/newjob/main ec2-user@172.31.94.214:/home/ec2-user"
+                sh "chmod +x main"
+            }    
+            }
+        }
+        stage('Deployemnt in Production') {
+            steps {
+                sshPublisher(publishers: [sshPublisherDesc(configName: 'newEC2', transfers: [sshTransfer(cleanRemote: false, excludes: '', execCommand: 'nohup ./main &>/dev/null &', execTimeout: 120000, flatten: false, makeEmptyDirs: false, noDefaultExcludes: false, patternSeparator: '[, ]+', remoteDirectory: '', remoteDirectorySDF: false, removePrefix: '', sourceFiles: 'main')], usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: false)])
+            }
+        }
+        
     }
 }
